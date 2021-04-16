@@ -1,0 +1,5 @@
+venv
+build
+*.charm
+**/__pycache__
+.coverage

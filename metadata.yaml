@@ -1,0 +1,10 @@
+# Copyright 2021 Dylan Stephano-Shachter
+# See LICENSE file for licensing details.
+name: cassandra-stress
+description: A charm designed to test a deployed cassandra charm
+summary: A charm designed to test a deployed cassandra charm
+series:
+  - kubernetes
+requires:
+  cql:
+    interface: cql
