@@ -3,17 +3,19 @@ import json
 import logging
 import secrets
 import string
-from .relation import Consumer, Provider
+from .relation import ConsumerBase, ProviderBase
 
+LIBID = "abcdefg"
 LIBAPI = 1
 LIBPATCH = 0
 logger = logging.getLogger(__name__)
 
 
 class DeferEventError(Exception):
-    def __init__(self, event):
+    def __init__(self, event, reason):
         super().__init__()
         self.event = event
+        self.reason = reason
 
 
 def status_catcher(func):
@@ -22,45 +24,41 @@ def status_catcher(func):
         try:
             func(self, *args, **kwargs)
         except DeferEventError as e:
-            logger.info(f"Defering event {str(e.event)}")
+            logger.info(f"Defering event: {str(e.event)} because: {e.reason}")
             e.event.defer()
 
     return new_func
 
 
-class CQLConsumer(Consumer):
+class CQLConsumer(ConsumerBase):
     def __init__(self, charm, name, consumes, multi=False):
         super().__init__(charm, name, consumes, multi)
         self.charm = charm
         self.relation_name = name
 
-    def credentials(self):
+    def credentials(self, rel_id=None):
         """
         Returns a dict of credentials
         {"username": <username>, "password": <password>}
         """
-        rel_id = super().stored.relation_id
-        if rel_id:
-            rel = self.framework.model.get_relation(self.relation_name, rel_id)
-        else:
-            rel = self.framework.model.get_relation(self.relation_name)
+        if rel_id is None:
+            rel_id = super()._stored.relation_id
+        rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         relation_data = rel.data[rel.app]
         creds_json = relation_data.get('credentials')
         creds = json.loads(creds_json) if creds_json is not None else ()
         return creds
 
-    def databases(self):
+    def databases(self, rel_id=None):
         """List of currently available databases
 
         Returns:
             list: list of database names
         """
-        rel_id = super().stored.relation_id
-        if rel_id:
-            rel = self.framework.model.get_relation(self.relation_name, rel_id)
-        else:
-            rel = self.framework.model.get_relation(self.relation_name)
+        if rel_id is None:
+            rel_id = super()._stored.relation_id
+        rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         relation_data = rel.data[rel.app]
         dbs = relation_data.get('databases')
@@ -68,50 +66,45 @@ class CQLConsumer(Consumer):
 
         return databases
 
-    def new_database(self):
+    def new_database(self, rel_id=None):
         """Request creation of an additional database
 
         """
         if not self.charm.unit.is_leader():
             return
 
-        rel_id = super().stored.relation_id
-        if rel_id:
-            rel = self.framework.model.get_relation(self.relation_name, rel_id)
-        else:
-            rel = self.framework.model.get_relation(self.relation_name)
+        if rel_id is None:
+            rel_id = super()._stored.relation_id
+        rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         rel_data = rel.data[self.charm.app]
         dbs = rel_data.get('requested_databases', 0)
         rel.data[self.charm.app]['requested_databases'] = str(dbs + 1)
 
-    def request_databases(self, n):
+    def request_databases(self, n, rel_id=None):
         """Request n databases"""
         if not self.charm.unit.is_leader():
             return
 
-        rel_id = super().stored.relation_id
-        if rel_id:
-            rel = self.framework.model.get_relation(self.relation_name, rel_id)
-        else:
-            rel = self.framework.model.get_relation(self.relation_name)
+        if rel_id is None:
+            rel_id = super()._stored.relation_id
+
+        rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         rel.data[self.charm.app]['requested_databases'] = str(n)
 
-    def port(self):
+    def port(self, rel_id=None):
         """Return the port which the cassandra instance is listening on"""
-        rel_id = super().stored.relation_id
-        if rel_id:
-            rel = self.framework.model.get_relation(self.relation_name, rel_id)
-        else:
-            rel = self.framework.model.get_relation(self.relation_name)
+        if rel_id is None:
+            rel_id = super()._stored.relation_id
+        rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         return rel.data[rel.app].get("port")
 
 
-class CQLProvider(Provider):
-    def __init__(self, charm, name, provides):
-        super().__init__(charm, name, provides)
+class CQLProvider(ProviderBase):
+    def __init__(self, charm, name, service, version=None):
+        super().__init__(charm, name, service, version)
         self.charm = charm
         events = self.charm.on[name]
         self.framework.observe(events.relation_changed, self.on_cql_changed)
