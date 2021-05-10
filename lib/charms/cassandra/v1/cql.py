@@ -24,7 +24,7 @@ def status_catcher(func):
         try:
             func(self, *args, **kwargs)
         except DeferEventError as e:
-            logger.info(f"Defering event: {str(e.event)} because: {e.reason}")
+            logger.info("Defering event: %s because: %s", str(e.event), e.reason)
             e.event.defer()
 
     return new_func
@@ -41,14 +41,11 @@ class CQLConsumer(ConsumerBase):
         Returns a dict of credentials
         {"username": <username>, "password": <password>}
         """
-        if rel_id is None:
-            rel_id = super()._stored.relation_id
         rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         relation_data = rel.data[rel.app]
         creds_json = relation_data.get('credentials')
-        creds = json.loads(creds_json) if creds_json is not None else ()
-        return creds
+        return json.loads(creds_json) if creds_json is not None else ()
 
     def databases(self, rel_id=None):
         """List of currently available databases
@@ -56,15 +53,11 @@ class CQLConsumer(ConsumerBase):
         Returns:
             list: list of database names
         """
-        if rel_id is None:
-            rel_id = super()._stored.relation_id
         rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         relation_data = rel.data[rel.app]
         dbs = relation_data.get('databases')
-        databases = json.loads(dbs) if dbs else []
-
-        return databases
+        return json.loads(dbs) if dbs else []
 
     def new_database(self, rel_id=None):
         """Request creation of an additional database
@@ -73,30 +66,23 @@ class CQLConsumer(ConsumerBase):
         if not self.charm.unit.is_leader():
             return
 
-        if rel_id is None:
-            rel_id = super()._stored.relation_id
         rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         rel_data = rel.data[self.charm.app]
         dbs = rel_data.get('requested_databases', 0)
         rel.data[self.charm.app]['requested_databases'] = str(dbs + 1)
 
-    def request_databases(self, n, rel_id=None):
+    def request_databases(self, num_databases, rel_id=None):
         """Request n databases"""
         if not self.charm.unit.is_leader():
             return
 
-        if rel_id is None:
-            rel_id = super()._stored.relation_id
-
         rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
-        rel.data[self.charm.app]['requested_databases'] = str(n)
+        rel.data[self.charm.app]['requested_databases'] = str(num_databases)
 
     def port(self, rel_id=None):
         """Return the port which the cassandra instance is listening on"""
-        if rel_id is None:
-            rel_id = super()._stored.relation_id
         rel = self.framework.model.get_relation(self.relation_name, rel_id)
 
         return rel.data[rel.app].get("port")
@@ -112,7 +98,7 @@ class CQLProvider(ProviderBase):
     def update_port(self, relation_name, port):
         if self.charm.unit.is_leader():
             for relation in self.charm.model.relations[relation_name]:
-                logger.info(f"Setting address data for relation {relation}")
+                logger.info("Setting address data for relation %s", relation)
                 if str(port) != relation.data[self.charm.app].get(
                     "port", None
                 ):
