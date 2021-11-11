@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-name: cassandra-stress
+name: cassandra-stress-k8s
 description: A charm designed to test a deployed cassandra charm
 summary: A charm designed to test a deployed cassandra charm
 containers:
