@@ -24,7 +24,7 @@ develop a new k8s charm using the Operator Framework:
 
 import logging
 
-import charms.cassandra.v1.cql as charmlib
+import charms.cassandra_k8s.v0.cql as charmlib
 
 from ops.charm import CharmBase
 from ops.main import main
@@ -40,39 +40,26 @@ class CassandraStressOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self._container = self.unit.get_container("cassandra-stress")
         self.framework.observe(self.on.simpletest_action, self.on_simple_test)
+        self.framework.observe(self.on["cql"].relation_changed, self.print_db_info)
         self.framework.observe(self.on.stresstest_action, self.on_stress_test)
-        self.framework.observe(self.on.install, self.setup)
-        self.consumer = charmlib.CQLConsumer(self, "cql", {"consumes": {}})
+        self.framework.observe(self.on.cassandra_stress_pebble_ready, self.setup)
+        self.consumer = charmlib.CassandraConsumer(self, "cql")
 
     def setup(self, event):
-        self.model.pod.set_spec(self.get_pod_spec(["sleep", "infinity"]))
+        layer = {
+            "summary": "Cassandra Stress Layer",
+            "description": "pebble config layer for Cassandra Stress",
+        }
+        self._container.add_layer("cassandra-stress", layer, combine=True)
         self.unit.status = ActiveStatus()
 
-    def get_pod_spec(self, command):
-        spec = {
-            "version": 3,
-            "containers": [
-                {
-                    "name": self.app.name,
-                    "imageDetails": IMAGE_DETAILS,
-                    "command": command,
-                    "ports": [
-                        {
-                            "containerPort": 22,
-                            "name": "ssh",
-                            "protocol": "TCP",
-                        }
-                    ],
-                }
-            ],
-        }
-        return spec
-
     def on_simple_test(self, event):
-        self.consumer.request_databases(1)
+        pass
+
+    def print_db_info(self, _):
         logger.error(self.consumer.credentials())
-        logger.error(self.consumer.databases())
         logger.error(self.consumer.port())
 
     def on_stress_test(self, event):

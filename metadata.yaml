@@ -15,8 +15,13 @@
 name: cassandra-stress
 description: A charm designed to test a deployed cassandra charm
 summary: A charm designed to test a deployed cassandra charm
-series:
-  - kubernetes
+containers:
+  cassandra-stress:
+    resource: cassandra-stress-image
+resources:
+  cassandra-stress-image:
+    type: oci-image
+    description: OCI image for Cassandra Stress
 requires:
   cql:
     interface: cql
